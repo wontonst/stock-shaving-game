@@ -2,12 +2,14 @@ from __future__ import print_function
 
 import collections
 import curses
+import itertools
 import random
 import time
 
 FPS = 30
 REFRESH_TIME = float(1)/FPS
 STARTING_CASH = 100
+GRAPH_MAX_WIDTH = 80
 
 
 class ShavingGame(object):
@@ -24,6 +26,23 @@ class ShavingGame(object):
         self.trend_up = 1
         self.buy_limits = collections.defaultdict(lambda:0)
         self.sell_limits = collections.defaultdict(lambda:0)
+        self.price_history = collections.deque()
+
+    def draw_graph(self, start_index, values, height=10):
+        lines = ['Price History']
+        if not values:
+            return lines
+        mx = max(values)
+        mn = min(values)
+        diff = mx - mn
+        for i in range(height):
+            line = ''
+            for val in values:
+                line += ' ' if mn + (height-i) * diff / height > val else 'X'
+                # line =  str(i * diff / height > val)
+            line = '{0:>80}'.format(line)
+            lines.append(line)
+        return lines
         
     def update_price(self):
         if self.price_time > time.time():
@@ -37,7 +56,10 @@ class ShavingGame(object):
         self.buy += change
         self.sell = self.buy + float(random.randrange(1,2))/100
         self.price_time = time.time() + float(random.randrange(5,20))/10
-
+        self.price_history.append(self.buy)
+        if len(self.price_history) > GRAPH_MAX_WIDTH:
+            self.price_history.popleft()
+        
         for price in (price for price in self.buy_limits if price >= self.sell):
             self.owned += self.buy_limits[price]
             self.buy_limits[price] = 0
@@ -81,13 +103,21 @@ class ShavingGame(object):
                 'Buy: ${:,.2f}       Sell: {:,.2f}'.format(self.buy, self.sell),
                 'Value: ${:,.2f}      Gain: {:,.1f}%'.format(value, ((value - STARTING_CASH) / STARTING_CASH)*100),
                 'Debug: {}'.format(self.debug_str),
-                'Limit Buy Orders'
             ]
-            for tup in sorted([(price, self.buy_limits[price]) for price in self.buy_limits if self.buy_limits[price]], key=lambda x: x[0]):
-                output.append("${:,.2f} - {} shares".format(tup[0], tup[1]))
-            output.append('Limit Sell Orders')
-            for tup in sorted([(price, self.sell_limits[price]) for price in self.sell_limits if self.sell_limits[price]], key=lambda x: x[0]):
-                output.append("${:,.2f} - {} shares".format(tup[0], tup[1]))                
+            output.append('{:<40}{:>40}'.format('Limit Buy Orders', 'Limit Sell Orders'))
+            buys = [(price, self.buy_limits[price]) for price in self.buy_limits if self.buy_limits[price]]
+            buys = sorted(buys, key=lambda x: x[0])
+            sells = [(price, self.sell_limits[price]) for price in self.sell_limits if self.sell_limits[price]]
+            sells = sorted(sells, key=lambda x: x[0])
+            for buy_tup, sell_tup in itertools.izip_longest(buys, sells):
+                buy_msg = ''
+                if buy_tup:
+                    buy_msg = "${:,.2f} - {} shares".format(buy_tup[0], buy_tup[1])
+                sell_msg = ''
+                if sell_tup:
+                    sell_msg = "${:,.2f} - {} shares".format(sell_tup[0], sell_tup[1])
+                output.append('{:<40}{:>40}'.format(buy_msg, sell_msg))
+            output += self.draw_graph(len(output), self.price_history)
             for i, s in enumerate(output):
                 screen.addstr(i, 0, s)
             self.render_time = time.time()
