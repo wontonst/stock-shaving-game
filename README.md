@@ -2,7 +2,7 @@
 
 Stock shaving is a command line game where you trade stocks to try to make a profit.
 
-Right now you simple run ```python run.py``` to kick off the game. There are no 3rd party library dependencies so have at it!
+Right now you simply run ```python run.py``` to kick off the game. There are no 3rd party library dependencies so have at it!
 
 The controls are simple.
 
