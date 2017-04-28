@@ -6,12 +6,13 @@ import time
 
 FPS = 30
 REFRESH_TIME = float(1)/FPS
+STARTING_CASH = 100
 
 
 class ShavingGame(object):
 
     def __init__(self):
-        self.cash = 100
+        self.cash = STARTING_CASH
         self.buy = 5
         self.sell = 5.01
         self.owned = 0
@@ -20,15 +21,14 @@ class ShavingGame(object):
         self.price_time = time.time()
         self.trend_time = time.time()
         self.trend_up = 1
-
         
     def update_price(self):
         if self.price_time > time.time():
             return
         if self.trend_time < time.time():
-            self.trend_time = time.time() + random.randint(5, 15)
+            self.trend_time = time.time() + random.uniform(5, 15)
             self.trend_up = random.randint(0, 1)
-        change = float(random.randrange(-3 if not self.trend_up else -2, 4 if self.trend_up else 3))/100
+        change = round(random.uniform(-0.03 if not self.trend_up else -0.02, 0.03 if self.trend_up else 0.02), 2)
 
         self.debug_str = "change={}trend_up={}".format(change, self.trend_up)
         self.buy += change
@@ -52,11 +52,15 @@ class ShavingGame(object):
             if time.time() < self.render_time + REFRESH_TIME:
                 time.sleep((self.render_time + REFRESH_TIME) - time.time())
             screen.erase()
-            screen.addstr(
-                0, 0, 'Cash: ${:,.2f}      Shares: {}'.format(self.cash, self.owned))
-            screen.addstr(
-                1, 0, 'Buy: ${:,.2f}       Sell: {:,.2f}'.format(self.buy, self.sell))
-            screen.addstr(2,0, 'Debug: {}'.format(self.debug_str))
+            value = self.cash + self.owned*self.buy
+            output = [
+                'Cash: ${:,.2f}      Shares: {}'.format(self.cash, self.owned),
+                'Buy: ${:,.2f}       Sell: {:,.2f}'.format(self.buy, self.sell),
+                'Value: ${:,.2f}      Gain: {:,.1f}'.format(value, ((value - STARTING_CASH) / STARTING_CASH)*100),
+                'Debug: {}'.format(self.debug_str)
+            ]
+            for i, s in enumerate(output):
+                screen.addstr(i, 0, s)
             self.render_time = time.time()
             self.process_input(screen)
             self.update_price()
