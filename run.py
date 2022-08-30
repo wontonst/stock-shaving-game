@@ -12,17 +12,47 @@ STARTING_CASH = 100
 GRAPH_MAX_WIDTH = 80
 
 
-class PriceTrends(object):
+class Trend(object):
     STABLE = 0
     CRASH = 1
     POP = 2
     UP = 3
     DOWN = 4
 
+    def __init__(self, changes, distribution, likelihood):
+        self._changes = changes
+        self._distribution = distribution
+        self._likelihood = likelihood
+
+    @property
+    def changes(self):
+        return self._changes
+
+    @property
+    def distribution(self):
+        return self._distribution
+
+    @property
+    def likelihood(self):
+        return self._likelihood
+
+    def difference(self):
+        return random.choices(self._changes, self._distribution)[0]
+
+
+class PriceTrends(object):
+    DISTRIBUTION = {
+        Trend.STABLE: Trend((-0.01, 0.0, 0.01), (2, 4, 2), 7),
+        Trend.CRASH: Trend((-0.1, -0.05, -0.01, 0), (1, 4, 5, 2), 1),
+        Trend.POP: Trend((0.1, 0.05, 0.01, 0), (1, 4, 5, 2), 1),
+        Trend.UP: Trend((-0.01, 0.0, 0.01, 0.02, 0.03), (4, 10, 8, 4, 2), 3),
+        Trend.DOWN: Trend((0.01, 0.0, -0.01, -0.02, -0.03), (4, 10, 8, 4, 2),3 ),
+    }
+
     def __init__(self):
         self.price_time = time.time()
         self.trend_time = time.time()
-        self.trend_up = random.randint(0, 1)
+        self.trend = self.DISTRIBUTION[Trend.STABLE]
         self._buy = 5
         self._sell = 5.01
         self.price_history = collections.deque()
@@ -35,17 +65,25 @@ class PriceTrends(object):
     def sell(self):
         return self._sell
 
+    def update_trend(self):
+        new_trend = random.choices(list(self.DISTRIBUTION.keys()),
+                                   [x.likelihood for x in self.DISTRIBUTION.values()])[0]
+        self.trend = self.DISTRIBUTION[new_trend]
+
     def update_price(self):
         if self.price_time > time.time():
             return
 
         if self.trend_time < time.time():
             self.trend_time = time.time() + random.uniform(5, 15)
-            self.trend_up = random.randint(0, 1)
-        change = round(random.uniform(-0.03 if not self.trend_up else -0.02, 0.03 if self.trend_up else 0.02), 2)
+            self.update_trend()
+
+        change = self.trend.difference()
 
         self._buy += change
+        # spread
         self._sell = self.buy + float(random.randrange(1, 2)) / 100
+
         self.price_time = time.time() + float(random.randrange(5, 20)) / 10
         self.price_history.append(self.buy)
         if len(self.price_history) > GRAPH_MAX_WIDTH:
@@ -59,8 +97,8 @@ class ShavingGame(object):
         self.owned = 0
         self.debug_str = ''
         self.render_time = time.time()
-        self.buy_limits = collections.defaultdict(lambda:0)
-        self.sell_limits = collections.defaultdict(lambda:0)
+        self.buy_limits = collections.defaultdict(lambda: 0)
+        self.sell_limits = collections.defaultdict(lambda: 0)
         self.price_mgr = PriceTrends()
 
     def draw_graph(self, values, height=10):
@@ -133,6 +171,7 @@ class ShavingGame(object):
             if time.time() < self.render_time + REFRESH_TIME:
                 time.sleep((self.render_time + REFRESH_TIME) - time.time())
             screen.erase()
+            self.debug_str = f'{self.price_mgr.trend.changes} {self.price_mgr.trend.distribution}'
             output = [
                 'Cash: ${:,.2f}      Shares: {}'.format(self.cash, self.owned),
                 'Buy: ${:,.2f}       Sell: {:,.2f}'.format(self.buy, self.sell),
