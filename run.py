@@ -144,7 +144,7 @@ class ShavingGame(object):
             buys = sorted(buys, key=lambda x: x[0])
             sells = [(price, self.sell_limits[price]) for price in self.sell_limits if self.sell_limits[price]]
             sells = sorted(sells, key=lambda x: x[0])
-            for buy_tup, sell_tup in itertools.izip_longest(buys, sells):
+            for buy_tup, sell_tup in itertools.zip_longest(buys, sells):
                 buy_msg = ''
                 if buy_tup:
                     buy_msg = "${:,.2f} - {} shares".format(buy_tup[0], buy_tup[1])
